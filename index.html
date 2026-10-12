@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Audio Memo PWA</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#ff2b4b">
+  
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="description" content="Enregistreur audio PWA - Enregistrez et conservez vos mémos vocaux hors-ligne.">
+  <meta property="og:title" content="Enregistreur audio PWA">
+  <meta property="og:description" content="Enregistrez et écoutez vos notes vocales hors-ligne.">
+  <meta property="og:type" content="website">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="RecordPWA">
+
+  <!-- Polices modernes -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Bannière de mise à jour (Cheatsheet §7) -->
+  <div id="update-banner" class="update-banner" style="display: none;">
+    <span>⚡ Une nouvelle version de l'application est disponible !</span>
+    <button id="btn-update" class="btn-banner">Mettre à jour</button>
+  </div>
+
+  <!-- Toast de notification -->
+  <div id="toast" class="toast" role="status"></div>
+
+  <!-- Barre d'onglets pour navigation mobile -->
+  <nav class="mobile-tabs" id="mobile-tabs">
+    <button class="mobile-tab-btn active" data-tab="recorder" id="tab-btn-recorder">
+      <span class="tab-icon">🎙️</span>
+      <span>Enregistreur</span>
+    </button>
+    <button class="mobile-tab-btn" data-tab="list" id="tab-btn-list">
+      <span class="tab-icon">📁</span>
+      <span>Notes (<span id="mobile-notes-count">0</span>)</span>
+    </button>
+  </nav>
+
+  <div class="app-layout" id="app-layout">
+    <!-- ==========================================================================
+         COLONNE GAUCHE : LISTE DES NOTES (Comme tracé en rouge sur le schéma)
+         ========================================================================== -->
+    <aside class="sidebar-list" id="section-list-container">
+      <div class="sidebar-header">
+        <div class="sidebar-title-row">
+          <div class="title-with-badge">
+            <h2>Notes enregistrées</h2>
+            <span class="count-badge" id="notes-count">0</span>
+          </div>
+          <!-- Bouton d'installation de l'app si disponible (Cheatsheet §6) -->
+          <button id="btn-install" class="btn-install" style="display: none;" title="Installer l'application">
+            ⬇ Installer
+          </button>
+        </div>
+
+        <div class="search-bar">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="search-input" placeholder="Rechercher une note vocale..." aria-label="Rechercher une note">
+        </div>
+      </div>
+
+      <!-- Liste défilante des cartes de mémos -->
+      <section class="list">
+        <ul id="recordings-list"></ul>
+
+        <!-- État vide si aucune note -->
+        <div id="empty-state" class="empty-state">
+          <div class="empty-icon-circle">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+              <line x1="12" y1="19" x2="12" y2="23"></line>
+              <line x1="8" y1="23" x2="16" y2="23"></line>
+            </svg>
+          </div>
+          <h3>Aucune note pour le moment</h3>
+          <p>Utilisez le bouton rouge à droite pour démarrer votre premier enregistrement.</p>
+          <button id="btn-add-sample" class="btn-sample-demo" type="button">
+            + Ajouter un exemple de test
+          </button>
+        </div>
+      </section>
+    </aside>
+
+    <!-- ==========================================================================
+         COLONNE DROITE : STUDIO D'ENREGISTREMENT & CONTROLES
+         ========================================================================== -->
+    <main class="main-content" id="section-recorder-container">
+      <header class="app-header">
+        <div class="header-badges">
+          <span class="app-badge">PWA Mobile</span>
+          <span id="network-status" class="network-badge online">En ligne</span>
+          <button id="btn-install-header" class="btn-install" style="display: none;" title="Installer l'application">
+            ⬇ Installer l'app
+          </button>
+        </div>
+        <h1>Enregistreur audio PWA</h1>
+        <p class="subtitle">Capturez vos idées vocales instantanément, stockées en local et disponibles hors ligne.</p>
+      </header>
+
+      <section class="controls">
+        <!-- Visualiseur d'ondes audio et chronomètre -->
+        <div class="visualizer-wrapper">
+          <canvas id="audio-visualizer" width="440" height="90"></canvas>
+          <div class="timer-display" id="recording-timer">00:00</div>
+        </div>
+
+        <!-- Indicateur de statut -->
+        <div class="status-container">
+          <span class="status-indicator-dot" id="status-dot"></span>
+          <p id="status">Prêt</p>
+        </div>
+
+        <!-- Boutons d'action -->
+        <div class="buttons-container">
+          <button id="btn-record">
+            <svg class="btn-svg-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="12" r="8"></circle>
+            </svg>
+            <span class="btn-text">Enregistrer</span>
+          </button>
+          
+          <button id="btn-stop" disabled>
+            <svg class="btn-svg-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="6" y="6" width="12" height="12" rx="2"></rect>
+            </svg>
+            <span class="btn-text">Arrêter</span>
+          </button>
+        </div>
+
+        <!-- Bannières d'informations PWA -->
+        <div class="pwa-features-bar">
+          <div class="feature-badge">
+            <span class="feature-icon">🎙️</span>
+            <span>Microphone (Capacité appareil)</span>
+          </div>
+          <div class="feature-badge">
+            <span class="feature-icon">💾</span>
+            <span>Stockage persistant IndexedDB (idb)</span>
+          </div>
+          <div class="feature-badge">
+            <span class="feature-icon">⚡</span>
+            <span>Service Worker (Cache First & Offline)</span>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal explicative pour installation sur iOS (iPhone / iPad) -->
+  <div id="ios-install-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>📲 Installer sur iPhone / iPad</h3>
+        <button id="btn-close-ios-modal-x" class="modal-close-x" aria-label="Fermer">✕</button>
+      </div>
+      <p class="modal-desc">Sur Safari iOS, l'installation se fait en 2 clics :</p>
+      <div class="ios-steps">
+        <div class="ios-step">
+          <span class="step-num">1</span>
+          <span>Appuyez sur le bouton <strong>Partager</strong> en bas de Safari (icône <strong class="ios-icon">⎋</strong> ou carré avec flèche montante).</span>
+        </div>
+        <div class="ios-step">
+          <span class="step-num">2</span>
+          <span>Faites défiler vers le bas et touchez <strong>Sur l'écran d'accueil</strong> (<strong class="ios-icon">➕</strong>).</span>
+        </div>
+        <div class="ios-step">
+          <span class="step-num">3</span>
+          <span>Appuyez sur <strong>Ajouter</strong> en haut à droite.</span>
+        </div>
+      </div>
+      <button id="btn-close-ios-modal" class="btn-modal-ok">J'ai compris</button>
+    </div>
+  </div>
+
+  <!-- Librairie idb recommandée par le cours (Cheatsheet) -->
+  <script src="https://cdn.jsdelivr.net/npm/idb@7/build/umd.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

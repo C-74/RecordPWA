@@ -1,0 +1,12 @@
+# RecordPWA - Enregistreur audio PWA
+
+> Application Progressive Web App (PWA) d'enregistrement de mémos vocaux haute fidélité.
+> Développée dans le cadre du cours PWA Master 2 Informatique.
+
+## Fonctionnalités
+- Enregistrement audio via l'API Microphone (MediaRecorder)
+- Stockage local et persistant des notes audio avec IndexedDB (librairie idb)
+- Fonctionnement 100% hors ligne avec Service Worker (Cache First)
+- Visualisation du spectre sonore en direct avec Web Audio API
+- Téléchargement et partage des fichiers audio (Web Share API)
+- Protection contre la mise en veille pendant l'enregistrement (Screen Wake Lock API)

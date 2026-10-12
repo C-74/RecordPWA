@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mode Hors Ligne - RecordPWA</title>
+  <meta name="theme-color" content="#ff2b4b">
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      margin: 0;
+      padding: 2rem 1rem;
+      background: #ffffff;
+      color: #1e293b;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      text-align: center;
+      box-sizing: border-box;
+    }
+    .offline-card {
+      max-width: 420px;
+      padding: 2rem;
+      border-radius: 16px;
+      border: 1px solid #ffcdcd;
+      background: #fffafa;
+      box-shadow: 0 4px 12px rgba(255, 43, 75, 0.08);
+    }
+    .icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+    h1 {
+      font-size: 1.5rem;
+      color: #ff2b4b;
+      margin-bottom: 0.5rem;
+    }
+    p {
+      color: #64748b;
+      line-height: 1.5;
+      margin-bottom: 1.5rem;
+    }
+    .btn {
+      display: inline-block;
+      padding: 0.75rem 1.5rem;
+      background: #ff2b4b;
+      color: #ffffff;
+      font-weight: 600;
+      text-decoration: none;
+      border-radius: 8px;
+      transition: background 0.2s;
+    }
+    .btn:hover {
+      background: #e01a39;
+    }
+  </style>
+</head>
+<body>
+  <div class="offline-card">
+    <div class="icon">📴</div>
+    <h1>Vous êtes hors ligne</h1>
+    <p>La connexion internet est momentanément indisponible, mais l'enregistreur et vos notes locales restent accessibles.</p>
+    <a href="/" class="btn">Retourner à l'application</a>
+  </div>
+</body>
+</html>

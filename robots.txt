@@ -1,0 +1,23 @@
+# robots.txt
+User-agent: *
+Allow: /
+
+# Googlebot : indexation pour les résultats de recherche web
+User-agent: Googlebot
+Allow: /
+
+# Crawlers d'IA : une décision par robot, avec sa raison en commentaire
+User-agent: GPTBot
+Allow: /            # citée par ChatGPT : acquisition et visibilité
+
+User-agent: ClaudeBot
+Allow: /            # citée par Claude : réponse aux requêtes des utilisateurs
+
+User-agent: CCBot
+Disallow: /         # pas de scraping en masse Common Crawl pour les archives
+
+User-agent: Google-Extended
+Disallow: /         # pas d'entraînement des modèles Gemini ; la recherche reste ouverte
+
+Sitemap: https://warm-faun-5052e9.netlify.app/sitemap.xml
+# llms.txt : https://warm-faun-5052e9.netlify.app/llms.txt

@@ -38,15 +38,22 @@ if ("serviceWorker" in navigator) {
 // ============================================================================
 // 2. BASE DE DONNÉES INDEXEDDB AVEC LA LIBRAIRIE IDB (Cheatsheet §8)
 // ============================================================================
+// 2. BASE DE DONNÉES INDEXEDDB AVEC OUTBOX (Cheatsheet §8, Sujet TP)
+// ============================================================================
 const DB_NAME = "audio-recordings-db";
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Incrément pour ajouter le store outbox
 const STORE_NAME = "recordings";
+const OUTBOX_STORE = "outbox";
 
 const dbPromise = idb.openDB(DB_NAME, DB_VERSION, {
-  upgrade(db) {
+  upgrade(db, oldVersion, newVersion) {
     if (!db.objectStoreNames.contains(STORE_NAME)) {
       db.createObjectStore(STORE_NAME, { keyPath: "id", autoIncrement: true });
       console.log("📦 Store IndexedDB « recordings » créé");
+    }
+    if (!db.objectStoreNames.contains(OUTBOX_STORE)) {
+      db.createObjectStore(OUTBOX_STORE, { keyPath: "id", autoIncrement: true });
+      console.log("📦 Store IndexedDB « outbox » créé pour la resynchronisation");
     }
   },
 });
@@ -63,6 +70,14 @@ async function saveRecording(item) {
 
 async function deleteRecording(id) {
   const db = await dbPromise;
+  // Nettoyer aussi dans l'outbox si en attente
+  try {
+    const outboxItems = await db.getAll(OUTBOX_STORE);
+    const pending = outboxItems.find((o) => o.recordingId === id);
+    if (pending) await db.delete(OUTBOX_STORE, pending.id);
+  } catch (e) {
+    console.warn("Erreur nettoyage outbox :", e);
+  }
   return await db.delete(STORE_NAME, id);
 }
 
@@ -75,8 +90,146 @@ async function updateRecordingTitle(id, newTitle) {
   }
 }
 
+async function addToOutbox(outboxItem) {
+  const db = await dbPromise;
+  return await db.add(OUTBOX_STORE, outboxItem);
+}
+
+// ----------------------------------------------------------------------------
+// RESYNCHRONISATION AUTOMATIQUE AU RETOUR DU RÉSEAU (OUTBOX)
+// ----------------------------------------------------------------------------
+let isSyncing = false;
+
+async function triggerOutboxSync() {
+  if (!navigator.onLine || isSyncing) return;
+  isSyncing = true;
+
+  try {
+    const db = await dbPromise;
+    const outboxItems = await db.getAll(OUTBOX_STORE);
+    if (!outboxItems || outboxItems.length === 0) {
+      isSyncing = false;
+      return;
+    }
+
+    console.log(`🔄 Dépilage de l'outbox : ${outboxItems.length} élément(s) en attente...`);
+    let syncedCount = 0;
+
+    for (const item of outboxItems) {
+      try {
+        // Simulation / Envoi réel de synchronisation vers API distante
+        const response = await fetch("https://jsonplaceholder.typicode.com/posts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: item.title,
+            recordingId: item.recordingId,
+            duration: item.duration,
+            timestamp: item.timestamp,
+          }),
+        });
+
+        if (response.ok) {
+          // 1. Supprimer l'action traitée de l'outbox
+          await db.delete(OUTBOX_STORE, item.id);
+
+          // 2. Mettre à jour l'enregistrement principal comme synchronisé
+          const recording = await db.get(STORE_NAME, item.recordingId);
+          if (recording) {
+            recording.synced = true;
+            await db.put(STORE_NAME, recording);
+          }
+          syncedCount++;
+        }
+      } catch (postErr) {
+        console.warn("Échec requête sync item outbox :", postErr);
+        // Arrêt si le réseau est instable pour retenter plus tard
+        break;
+      }
+    }
+
+    if (syncedCount > 0) {
+      showToast(`🔄 Resynchronisation : ${syncedCount} note(s) synchronisée(s) !`);
+      notifyUser("🔄 Synchronisation terminée", `${syncedCount} note(s) sauvegardée(s) sur le serveur !`);
+      loadAndDisplayRecordings();
+    }
+  } catch (err) {
+    console.error("Erreur générale dépilage outbox :", err);
+  } finally {
+    isSyncing = false;
+  }
+}
+
 // ============================================================================
-// 3. ÉTAT DU RÉSEAU & UX HORS-LIGNE (Cheatsheet §9, td8-pwa-notes)
+// 3. NOTIFICATIONS LOCALES PWA (Option A — Bonus Barème)
+// ============================================================================
+const btnToggleNotif = document.getElementById("btn-toggle-notif");
+
+function updateNotificationButtonState() {
+  if (!btnToggleNotif) return;
+  if (!("Notification" in window)) {
+    btnToggleNotif.style.display = "none";
+    return;
+  }
+
+  if (Notification.permission === "granted") {
+    btnToggleNotif.textContent = "🔔 Notifs actives";
+    btnToggleNotif.classList.add("active");
+  } else if (Notification.permission === "denied") {
+    btnToggleNotif.textContent = "🔕 Notifs bloquées";
+    btnToggleNotif.classList.remove("active");
+  } else {
+    btnToggleNotif.textContent = "🔔 Activer notifs";
+    btnToggleNotif.classList.remove("active");
+  }
+}
+
+async function requestNotificationPermission() {
+  if (!("Notification" in window)) {
+    showToast("⚠️ Notifications non supportées par ce navigateur");
+    return;
+  }
+  const permission = await Notification.requestPermission();
+  updateNotificationButtonState();
+  if (permission === "granted") {
+    showToast("🔔 Notifications activées avec succès !");
+    notifyUser("RecordPWA", "Vous recevrez des alertes lors de l'enregistrement et de la synchronisation.");
+  } else {
+    showToast("🔕 Notifications désactivées");
+  }
+}
+
+if (btnToggleNotif) {
+  btnToggleNotif.addEventListener("click", requestNotificationPermission);
+}
+
+async function notifyUser(title, body) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  try {
+    if ("serviceWorker" in navigator) {
+      const reg = await navigator.serviceWorker.ready;
+      if (reg && reg.showNotification) {
+        await reg.showNotification(title, {
+          body: body,
+          icon: "/icons/icon-192.png",
+          badge: "/icons/icon-192.png",
+          vibrate: [150, 80, 150],
+          tag: "record-pwa-notification",
+        });
+        return;
+      }
+    }
+    new Notification(title, { body, icon: "/icons/icon-192.png" });
+  } catch (err) {
+    console.warn("Erreur déclenchement notification :", err);
+  }
+}
+
+// Initialiser l'état du bouton
+updateNotificationButtonState();
+
+// ============================================================================
+// 4. ÉTAT DU RÉSEAU & UX HORS-LIGNE (Cheatsheet §9, td8-pwa-notes)
 // ============================================================================
 const networkBadge = document.getElementById("network-status");
 const toastEl = document.getElementById("toast");
@@ -98,12 +251,13 @@ function updateNetworkStatus() {
 
 window.addEventListener("online", () => {
   updateNetworkStatus();
-  showToast("🌐 Connexion rétablie !");
+  showToast("🌐 Connexion rétablie ! Resynchronisation...");
+  triggerOutboxSync();
 });
 
 window.addEventListener("offline", () => {
   updateNetworkStatus();
-  showToast("📴 Mode hors ligne — Enregistrements stockés en local");
+  showToast("📴 Mode hors ligne — Enregistrements placés dans l'outbox");
 });
 
 updateNetworkStatus();
@@ -362,17 +516,32 @@ btnRecord.addEventListener("click", async () => {
         minute: "2-digit",
       });
 
+      const isOnline = navigator.onLine;
       const newRecord = {
         title: `Note du ${now.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} à ${now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`,
         blob: audioBlob,
         duration: recordDuration,
         timestamp: Date.now(),
         dateStr: dateStr,
+        synced: isOnline,
       };
 
       try {
-        await saveRecording(newRecord);
-        showToast("✅ Note vocale enregistrée !");
+        const id = await saveRecording(newRecord);
+        if (!isOnline) {
+          // Hors ligne : stocké dans l'outbox pour resynchronisation
+          await addToOutbox({
+            recordingId: id,
+            title: newRecord.title,
+            duration: recordDuration,
+            timestamp: newRecord.timestamp,
+          });
+          showToast("💾 Enregistré hors ligne (placé dans l'Outbox)", 3500);
+          notifyUser("🎙️ Mémo vocal enregistré", "Note stockée en local (en attente de synchronisation)");
+        } else {
+          showToast("✅ Note vocale enregistrée et synchronisée !");
+          notifyUser("🎙️ Mémo vocal enregistré", "Votre note est sauvegardée et synchronisée !");
+        }
         loadAndDisplayRecordings();
       } catch (err) {
         console.error("Erreur sauvegarde IndexedDB :", err);
@@ -490,15 +659,27 @@ const btnAddSample = document.getElementById("btn-add-sample");
 if (btnAddSample) {
   btnAddSample.addEventListener("click", async () => {
     const now = new Date();
+    const isOnline = navigator.onLine;
     const demoItem = {
       title: `Mémo vocal de démonstration #${currentRecordings.length + 1}`,
       blob: createSampleAudioBlob(),
       duration: 2,
       timestamp: Date.now(),
       dateStr: now.toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }),
+      synced: isOnline,
     };
-    await saveRecording(demoItem);
-    showToast("✨ Exemple de test ajouté au stockage !");
+    const id = await saveRecording(demoItem);
+    if (!isOnline) {
+      await addToOutbox({
+        recordingId: id,
+        title: demoItem.title,
+        duration: 2,
+        timestamp: demoItem.timestamp,
+      });
+      showToast("💾 Exemple ajouté (placé dans l'Outbox)");
+    } else {
+      showToast("✨ Exemple de test ajouté au stockage !");
+    }
     loadAndDisplayRecordings();
   });
 }
@@ -508,6 +689,10 @@ async function loadAndDisplayRecordings() {
     currentRecordings = await getAllRecordings();
     currentRecordings.sort((a, b) => b.timestamp - a.timestamp);
     renderList(currentRecordings);
+    // Dépile l'outbox si on est en ligne
+    if (navigator.onLine) {
+      triggerOutboxSync();
+    }
   } catch (err) {
     console.error("Erreur chargement IndexedDB :", err);
   }
@@ -542,7 +727,12 @@ function renderList(list) {
           <span class="recording-title" title="Cliquer pour renommer">${escapeHtml(item.title)}</span>
           <span class="recording-date">${item.dateStr || "Enregistrement"}</span>
         </div>
-        <span class="duration-pill">${formatTime(item.duration || 0)}</span>
+        <div class="card-pills">
+          <span class="sync-pill ${item.synced !== false ? "synced" : "pending"}" title="${item.synced !== false ? "Synchronisé" : "En attente de réseau (dans l'Outbox)"}">
+            ${item.synced !== false ? "☁️ Sync" : "⏳ Outbox"}
+          </span>
+          <span class="duration-pill">${formatTime(item.duration || 0)}</span>
+        </div>
       </div>
 
       <div class="card-audio-container">

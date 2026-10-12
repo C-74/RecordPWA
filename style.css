@@ -367,6 +367,12 @@ body {
   color: var(--text-muted);
 }
 
+.card-pills {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .duration-pill {
   font-family: var(--font-mono);
   font-size: 0.75rem;
@@ -377,6 +383,57 @@ body {
   padding: 0.2rem 0.5rem;
   border-radius: var(--radius-full);
   white-space: nowrap;
+}
+
+.sync-pill {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+.sync-pill.synced {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.sync-pill.pending {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  animation: pulseSync 2s infinite ease-in-out;
+}
+
+@keyframes pulseSync {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.btn-notif {
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.35rem 0.65rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.btn-notif:hover {
+  background: #e2e8f0;
+}
+
+.btn-notif.active {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #86efac;
 }
 
 /* Lecteur audio intégré dans la carte */

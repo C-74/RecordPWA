@@ -6,12 +6,21 @@ Allow: /
 User-agent: Googlebot
 Allow: /
 
-# Crawlers d'IA : une décision par robot, avec sa raison en commentaire
+# Crawlers d'IA : une décision par robot avec sa raison en commentaire
 User-agent: GPTBot
 Allow: /            # citée par ChatGPT : acquisition et visibilité
 
+User-agent: OAI-SearchBot
+Allow: /            # affichage dans les résultats de recherche de SearchGPT
+
 User-agent: ClaudeBot
 Allow: /            # citée par Claude : réponse aux requêtes des utilisateurs
+
+User-agent: Claude-SearchBot
+Allow: /            # qualité des résultats de recherche Anthropic Claude
+
+User-agent: PerplexityBot
+Allow: /            # citée dans les résultats de recherche Perplexity
 
 User-agent: CCBot
 Disallow: /         # pas de scraping en masse Common Crawl pour les archives

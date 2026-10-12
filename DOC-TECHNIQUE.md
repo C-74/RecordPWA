@@ -1,6 +1,6 @@
 # RecordPWA — Technical Design Doc
 
-Étudiant M2 Informatique · 12 octobre 2026 · URL : https://warm-faun-5052e9.netlify.app/ · Dépôt : https://github.com/C-74/RecordPWA · Statut : Final
+Yanis BELLAHCNE M2 Informatique · 12 octobre 2026 · URL : https://warm-faun-5052e9.netlify.app/ · Dépôt : https://github.com/C-74/RecordPWA · Statut : Final
 
 ---
 

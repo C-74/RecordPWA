@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "app.netlify.warm_faun_5052e9.twa",
+    "sha256_cert_fingerprints": [
+      "47:50:89:DC:7E:66:F4:34:E0:DC:03:EC:95:31:C0:CB:47:95:5D:11:7C:3A:35:2A:22:0D:93:96:E4:CB:73:66"
+    ]
+  }
+}]

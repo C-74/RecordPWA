@@ -1,7 +1,7 @@
 // sw.js — Service Worker pour Enregistreur audio PWA
 // Basé sur le cheatsheet du cours et td8-pwa-notes
 
-const CACHE_NAME = "record-pwa-v2";
+const CACHE_NAME = "record-pwa-v3";
 
 const STATIC_ASSETS = [
   "/",
